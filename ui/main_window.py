@@ -1,4 +1,14 @@
-from PySide6.QtWidgets import QDialog, QFileDialog, QLineEdit, QMainWindow, QWidget, QVBoxLayout, QPushButton
+from PySide6.QtWidgets import (
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 from PySide6.QtGui import QAction
 import pyqtgraph as pg
 
@@ -26,6 +36,18 @@ class MainWindow(QMainWindow):
         self.plot_item.setYRange(-1.2, 1.2, padding=0)
         layout.addWidget(self.plot_widget)
 
+        # Coordinate display at bottom right corner
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addStretch()
+        self.coord_label = QLabel("Selected Point:")
+        self.coord_box = QLineEdit()
+        self.coord_box.setReadOnly(True)
+        self.coord_box.setPlaceholderText("No point selected")
+        self.coord_box.setFixedWidth(200)
+        bottom_layout.addWidget(self.coord_label)
+        bottom_layout.addWidget(self.coord_box)
+        layout.addLayout(bottom_layout)
+
         # Menu bar
         self.menu_bar = self.menuBar()
 
@@ -39,17 +61,44 @@ class MainWindow(QMainWindow):
 
         # Edit menu
         self.edit_menu = self.menu_bar.addMenu("Edit")
-        # Add points (TODO)
+        # Add point
         self.add_point_action = QAction("Add Point", self, shortcut="A", statusTip="Add a new point")
         self.add_point_action.triggered.connect(self.add_point)
         self.edit_menu.addAction(self.add_point_action)
-        # Remove points (TODO)
+        # Remove point
+        self.remove_point_action = QAction("Remove Point", self, shortcut="D", statusTip="Remove selected point")
+        self.remove_point_action.triggered.connect(self.remove_selected_point)
+        self.edit_menu.addAction(self.remove_point_action)
+        # Move point
+        self.move_point_action = QAction("Move Point", self, shortcut="M", statusTip="Move selected point")
+        self.move_point_action.triggered.connect(self.move_selected_point)
+        self.edit_menu.addAction(self.move_point_action)
         # Undo (TODO)
         # Redo (TODO)
 
         self.points = []
         self.lines = []
+        self.selected_index = None
         self.redraw_all()
+
+    def select_point(self, index):
+        """Select a point by index and display its coordinates."""
+        if 0 <= index < len(self.waveform.node_x):
+            self.selected_index = index
+            x = self.waveform.node_x[index]
+            y = self.waveform.node_y[index]
+            self.coord_box.setText(f"X: {sciprint(x)}, Y: {sciprint(y)}")
+            self.update_point_styles()
+
+    def update_point_styles(self):
+        """Visually highlight the selected point."""
+        for i, node in enumerate(self.points):
+            if i == self.selected_index:
+                node.setPen(pg.mkPen('k', width=2))
+                node.setBrush(pg.mkBrush(255, 200, 0, 255))
+            else:
+                node.setPen(pg.mkPen(None))
+                node.setBrush(pg.mkBrush(255, 80, 80, 230))
 
     def redraw_index(self, index, x, y):
         """Redraw the waveform based on updated control points."""
@@ -80,6 +129,10 @@ class MainWindow(QMainWindow):
             x1, y1 = self.waveform.node_x[index + 1], self.waveform.node_y[index + 1]
             self.lines[index].setData(x=[x0, x1], y=[y0, y1])
 
+        # Update coordinates in textbox if this is the selected point
+        if index == self.selected_index:
+            self.coord_box.setText(f"X: {sciprint(x)}, Y: {sciprint(y)}")
+
     def redraw_all(self):
         """Redraw the entire waveform based on all control points."""
         self.plot_widget.clear()
@@ -89,6 +142,7 @@ class MainWindow(QMainWindow):
             node = DraggableNode(self, node_idx=idx)
             node.setData([x], [y])
             node.positionChanged.connect(self.redraw_index)
+            node.nodeSelected.connect(self.select_point)
             self.points.append(node)
             self.plot_widget.addItem(node)
 
@@ -99,6 +153,16 @@ class MainWindow(QMainWindow):
                 line = pg.PlotCurveItem(x=[x0, x1], y=[y0, y1], pen=pg.mkPen('#00B4D8', width=2.5))
                 self.plot_widget.addItem(line)
                 self.lines.append(line)
+
+        # Restore or initialize selection
+        if len(self.waveform.node_x) > 0:
+            if self.selected_index is None or self.selected_index >= len(self.waveform.node_x):
+                self.select_point(0)
+            else:
+                self.select_point(self.selected_index)
+        else:
+            self.selected_index = None
+            self.coord_box.clear()
 
     def export_waveform(self):
         """Export the piece wise linear waveform."""
@@ -115,15 +179,51 @@ class MainWindow(QMainWindow):
             for x, y in zip(self.waveform.node_x, self.waveform.node_y):
                 f.write(f"{sciprint(x)},{sciprint(y)}\n")
         
-
     def add_point(self):
         """Add a new point to the waveform."""
         dialog = AddPointDialog(self)
         if dialog.exec() == QDialog.Accepted:
             x, y = dialog.get_coordinates()
             self.waveform.add_point(x, y)
+            try:
+                self.selected_index = self.waveform.node_x.index(x)
+            except ValueError:
+                pass
             self.redraw_all()
             print(f"Adding point at ({sciprint(x)}, {sciprint(y)})")
+
+    def remove_selected_point(self):
+        """Remove the currently selected point from the waveform."""
+        if self.selected_index is not None and 0 <= self.selected_index < len(self.waveform.node_x):
+            removed_x = self.waveform.node_x[self.selected_index]
+            removed_y = self.waveform.node_y[self.selected_index]
+            del self.waveform.node_x[self.selected_index]
+            del self.waveform.node_y[self.selected_index]
+            print(f"Removed point at ({sciprint(removed_x)}, {sciprint(removed_y)})")
+            # Adjust selected index
+            if self.selected_index >= len(self.waveform.node_x):
+                self.selected_index = len(self.waveform.node_x) - 1
+            self.redraw_all()
+            
+    def move_selected_point(self):
+        """Move the currently selected point in the waveform."""
+        if self.selected_index is None or not 0 <= self.selected_index < len(self.waveform.node_x):
+            return
+
+        dialog = MovePointDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            x, y = dialog.get_coordinates()
+            # Remove the old point
+            del self.waveform.node_x[self.selected_index]
+            del self.waveform.node_y[self.selected_index]
+            # Add the new point
+            self.waveform.add_point(x, y)
+            try:
+                self.selected_index = self.waveform.node_x.index(x)
+            except ValueError:
+                pass
+            self.redraw_all()
+            print(f"Moving point to ({sciprint(x)}, {sciprint(y)})")
 
 class AddPointDialog(QDialog):
     def __init__(self, parent=None):
@@ -144,6 +244,45 @@ class AddPointDialog(QDialog):
 
         # Add button
         self.add_button = QPushButton("Add Point")
+        self.add_button.clicked.connect(self.on_accept)
+        layout.addWidget(self.add_button)
+
+        self.x = None
+        self.y = None
+
+    def on_accept(self):
+        """Handle validating input and accepting the dialog."""
+        try:
+            self.x = sciparse(self.x_input.text())
+            self.y = sciparse(self.y_input.text())
+            self.accept()
+        except ValueError:
+            print("Invalid input. Please enter numeric values for x and y.")
+
+    def get_coordinates(self):
+        """Return the entered (x, y) coordinates."""
+        return self.x, self.y
+
+
+class MovePointDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Move Point")
+        layout = QVBoxLayout(self)
+
+        # Input fields for x and y coordinates
+        self.x_input = QLineEdit()
+        self.x_input.setPlaceholderText("Enter x coordinate")
+        self.x_input.returnPressed.connect(self.on_accept)
+        layout.addWidget(self.x_input)
+
+        self.y_input = QLineEdit()
+        self.y_input.setPlaceholderText("Enter y coordinate")
+        self.y_input.returnPressed.connect(self.on_accept)
+        layout.addWidget(self.y_input)
+
+        # Add button
+        self.add_button = QPushButton("Move Point")
         self.add_button.clicked.connect(self.on_accept)
         layout.addWidget(self.add_button)
 
