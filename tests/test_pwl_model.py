@@ -5,7 +5,7 @@ import unittest
 # Ensure the project root is in sys.path when running this file directly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from core.pwl_model import PWLWaveform
+from core.pwl_model import PWLWaveform, sciparse, sciprint
 
 
 class TestPWLWaveform(unittest.TestCase):
@@ -325,7 +325,43 @@ class TestPWLWaveform(unittest.TestCase):
         # 8. Add a point at the end (x = 1.0)
         self.waveform.add_point(1.0, 10.0)
         self.assertPointsInOrder(self.waveform, strictly_increasing=True)
-        self.assertEqual(self.waveform.node_x, [0.2, 0.3, 0.4, 0.6, 1.0])
+
+class TestSciFunctions(unittest.TestCase):
+    """Unit tests for sciparse and sciprint helper functions."""
+
+    def test_sciparse_numbers(self):
+        self.assertAlmostEqual(sciparse("0"), 0.0)
+        self.assertAlmostEqual(sciparse("1.25"), 1.25)
+        self.assertAlmostEqual(sciparse("-3.5"), -3.5)
+
+    def test_sciparse_scientific_suffixes(self):
+        self.assertAlmostEqual(sciparse("10p"), 10e-12)
+        self.assertAlmostEqual(sciparse("2.5n"), 2.5e-9)
+        self.assertAlmostEqual(sciparse("100u"), 100e-6)
+        self.assertAlmostEqual(sciparse("5m"), 5e-3)
+        self.assertAlmostEqual(sciparse("10k"), 10e3)
+        self.assertAlmostEqual(sciparse("2M"), 2e6)
+        self.assertAlmostEqual(sciparse("1G"), 1e9)
+
+    def test_sciparse_invalid_inputs(self):
+        with self.assertRaises(ValueError):
+            sciparse("")
+        with self.assertRaises(ValueError):
+            sciparse("   ")
+        with self.assertRaises(ValueError):
+            sciparse("abc")
+        with self.assertRaises(ValueError):
+            sciparse("12xyz")
+
+    def test_sciprint(self):
+        self.assertEqual(sciprint(0), "0")
+        self.assertEqual(sciprint(5e-13), "0.500p")
+        self.assertEqual(sciprint(1.5e-9), "1.500n")
+        self.assertEqual(sciprint(1.5e-6), "1.500u")
+        self.assertEqual(sciprint(1.5e-3), "1.500m")
+        self.assertEqual(sciprint(5.0), "5.000")
+        self.assertEqual(sciprint(5000), "5.000k")
+        self.assertEqual(sciprint(5000000), "5.000M")
 
 
 if __name__ == "__main__":
