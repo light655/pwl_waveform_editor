@@ -54,6 +54,9 @@ class MainWindow(QMainWindow):
         # File menu
         self.file_menu = self.menu_bar.addMenu("File")
         # Import (TODO)
+        self.import_action = QAction("Import", self, shortcut="Ctrl+I", statusTip="Import waveform")
+        self.import_action.triggered.connect(self.import_waveform)
+        self.file_menu.addAction(self.import_action)
         # Export
         self.export_action = QAction("Export", self, shortcut="Ctrl+E", statusTip="Export waveform")
         self.export_action.triggered.connect(self.export_waveform)
@@ -163,6 +166,39 @@ class MainWindow(QMainWindow):
         else:
             self.selected_index = None
             self.coord_box.clear()
+
+    def import_waveform(self):
+        """Import a piece wise linear waveform from a file."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Waveform",
+            "",
+            "CSV Files (*.csv);;PWL Files (*.pwl);;Text Files (*.txt);;All Files (*)",
+        )
+        if not file_path:
+            return
+
+        try:
+            with open(file_path, 'r') as f:
+                new_x = []
+                new_y = []
+                for line in f:
+                    parts = line.strip().split(',')
+                    if len(parts) != 2:
+                        raise ValueError("Each line must contain exactly two values.")
+                    x, y = sciparse(parts[0]), sciparse(parts[1])
+                    new_x.append(x)
+                    new_y.append(y)
+
+            # Update the waveform with the imported data
+            self.waveform.node_x = new_x
+            self.waveform.node_y = new_y
+            self.selected_index = 0 if new_x else None
+            self.redraw_all()
+            print(f"Imported waveform from {file_path}")
+
+        except Exception as e:
+            print(f"Failed to import waveform: {e}")
 
     def export_waveform(self):
         """Export the piece wise linear waveform."""
