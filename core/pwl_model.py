@@ -38,6 +38,7 @@ class PWLWaveform:
         # Initialize points for the piecewise linear waveform
         self.node_x = [0.0]
         self.node_y = [0.0]
+        self.use_unit_multipliers = True  # Default to using unit multipliers
 
     def add_point(self, x, y):
         """Add a new point to the waveform."""

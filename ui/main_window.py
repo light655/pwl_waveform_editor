@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import (
+    QCheckBox,
     QDialog,
     QFileDialog,
     QHBoxLayout,
@@ -36,9 +37,18 @@ class MainWindow(QMainWindow):
         self.plot_item.setYRange(-1.2, 1.2, padding=0)
         layout.addWidget(self.plot_widget)
 
-        # Coordinate display at bottom right corner
+        # options and status bar
         bottom_layout = QHBoxLayout()
+
+        # Checkbox for toggling unit multipliers
+        self.unit_checkbox = QCheckBox("Use Unit Multipliers")
+        self.unit_checkbox.setCheckable(True)
+        self.unit_checkbox.setChecked(True)
+        self.unit_checkbox.stateChanged.connect(self.toggle_unit_multipliers)
+        bottom_layout.addWidget(self.unit_checkbox)
         bottom_layout.addStretch()
+
+        # Coordinate display
         self.coord_label = QLabel("Selected Point:")
         self.coord_box = QLineEdit()
         self.coord_box.setReadOnly(True)
@@ -90,7 +100,7 @@ class MainWindow(QMainWindow):
             self.selected_index = index
             x = self.waveform.node_x[index]
             y = self.waveform.node_y[index]
-            self.coord_box.setText(f"X: {sciprint(x)}, Y: {sciprint(y)}")
+            self.print_coordinates(x, y)
             self.update_point_styles()
 
     def update_point_styles(self):
@@ -102,6 +112,22 @@ class MainWindow(QMainWindow):
             else:
                 node.setPen(pg.mkPen(None))
                 node.setBrush(pg.mkBrush(255, 80, 80, 230))
+
+    def toggle_unit_multipliers(self):
+        """Toggle the use of unit multipliers for displaying coordinates."""
+        self.waveform.use_unit_multipliers = self.unit_checkbox.isChecked()
+
+        if self.selected_index is not None and 0 <= self.selected_index < len(self.waveform.node_x):
+            x = self.waveform.node_x[self.selected_index]
+            y = self.waveform.node_y[self.selected_index]
+            self.print_coordinates(x, y)
+
+    def print_coordinates(self, x, y):
+        """Print the coordinates of a point, using unit multipliers if enabled."""
+        if self.waveform.use_unit_multipliers:
+            self.coord_box.setText(f"X: {sciprint(x)}, Y: {sciprint(y)}")
+        else:
+            self.coord_box.setText(f"X: {x:.3g}, Y: {y:.3g}")
 
     def redraw_index(self, index, x, y):
         """Redraw the waveform based on updated control points."""
@@ -134,7 +160,7 @@ class MainWindow(QMainWindow):
 
         # Update coordinates in textbox if this is the selected point
         if index == self.selected_index:
-            self.coord_box.setText(f"X: {sciprint(x)}, Y: {sciprint(y)}")
+            self.print_coordinates(x, y)
 
     def redraw_all(self):
         """Redraw the entire waveform based on all control points."""
