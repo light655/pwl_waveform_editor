@@ -16,19 +16,21 @@ def sciparse(sci_str):
 
 
 def sciprint(val):
-    if val == 0:
+    mag = abs(val)
+
+    if mag == 0:
         return "0"
-    elif val < 1e-9:
+    elif mag < 1e-9:
         return f"{val*1e12:.3f}p"
-    elif val < 1e-6:
+    elif mag < 1e-6:
         return f"{val*1e9:.3f}n"
-    elif val < 1e-3:
+    elif mag < 1e-3:
         return f"{val*1e6:.3f}u"
-    elif val < 1:
+    elif mag < 1:
         return f"{val*1e3:.3f}m"
-    elif val < 1e3:
+    elif mag < 1e3:
         return f"{val:.3f}"
-    elif val < 1e6:
+    elif mag < 1e6:
         return f"{val/1e3:.3f}k"
     else:
         return f"{val/1e6:.3f}M"
@@ -78,3 +80,33 @@ class PWLWaveform:
         if 0 <= index < len(self.node_x):
             self.node_x.pop(index)
             self.node_y.pop(index)
+
+    def import_waveform(self, filename):
+        """Import waveform data from a CSV file."""
+        try:
+            with open(filename, 'r') as f:
+                new_x = []
+                new_y = []
+                for line in f:
+                    parts = line.strip().split(',')
+                    if len(parts) != 2:
+                        raise ValueError("Each line must contain exactly two values.")
+                    x, y = sciparse(parts[0]), sciparse(parts[1])
+                    new_x.append(x)
+                    new_y.append(y)
+
+                self.node_x = new_x
+                self.node_y = new_y
+
+        except Exception as e:
+            raise ValueError(f"Error reading file '{filename}': {e}")
+
+    def export_waveform(self, filename):
+        """Export waveform data to a CSV file."""
+
+        with open(filename, 'w') as f:
+            for x, y in zip(self.node_x, self.node_y):
+                if self.use_unit_multipliers:
+                    f.write(f"{sciprint(x)},{sciprint(y)}\n")
+                else:
+                    f.write(f"{x:.3g},{y:.3g}\n")

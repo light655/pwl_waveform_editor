@@ -205,21 +205,8 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            with open(file_path, 'r') as f:
-                new_x = []
-                new_y = []
-                for line in f:
-                    parts = line.strip().split(',')
-                    if len(parts) != 2:
-                        raise ValueError("Each line must contain exactly two values.")
-                    x, y = sciparse(parts[0]), sciparse(parts[1])
-                    new_x.append(x)
-                    new_y.append(y)
-
-            # Update the waveform with the imported data
-            self.waveform.node_x = new_x
-            self.waveform.node_y = new_y
-            self.selected_index = 0 if new_x else None
+            self.waveform.import_waveform(file_path)
+            self.selected_index = 0 if self.waveform.node_x else None
             self.redraw_all()
             print(f"Imported waveform from {file_path}")
 
@@ -237,10 +224,8 @@ class MainWindow(QMainWindow):
         if not file_path:
             return
 
-        with open(file_path, 'w') as f:
-            for x, y in zip(self.waveform.node_x, self.waveform.node_y):
-                f.write(f"{sciprint(x)},{sciprint(y)}\n")
-        
+        self.waveform.export_waveform(file_path)
+
     def add_point(self):
         """Add a new point to the waveform."""
         dialog = AddPointDialog(self)
