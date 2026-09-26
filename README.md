@@ -23,6 +23,11 @@ Run the program.
 python3 main.py
 ```
 
+## Packaged application
+
+This program is packaged as a standalone application with Nuitka.
+If you do not have Python or the required packages on your device, you can download the packaged application on the release page.
+
 ## Usage
 
 ![](pwl_demo.gif)
