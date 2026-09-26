@@ -17,9 +17,10 @@ from core.pwl_model import sciparse, sciprint, PWLWaveform
 from ui.draggable_nodes import DraggableNode
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, verbose=False):
         super().__init__()
         self.setWindowTitle("Piece Wise Linear Waveform Editor")
+        self.verbose = verbose
 
         self.waveform = PWLWaveform()
 
@@ -132,7 +133,8 @@ class MainWindow(QMainWindow):
     def redraw_index(self, index, x, y):
         """Redraw the waveform based on updated control points."""
 
-        print(f"Redrawing index {index} to new position ({sciprint(x)}, {sciprint(y)})")
+        if self.verbose:
+            print(f"Redrawing index {index} to new position ({sciprint(x)}, {sciprint(y)})")
 
         # limit the x values between the two neighbouring points to maintain order
         if len(self.waveform.node_x) > 1:
@@ -208,7 +210,8 @@ class MainWindow(QMainWindow):
             self.waveform.import_waveform(file_path)
             self.selected_index = 0 if self.waveform.node_x else None
             self.redraw_all()
-            print(f"Imported waveform from {file_path}")
+            if self.verbose:
+                print(f"Imported waveform from {file_path}")
 
         except Exception as e:
             print(f"Failed to import waveform: {e}")
@@ -237,7 +240,9 @@ class MainWindow(QMainWindow):
             except ValueError:
                 pass
             self.redraw_all()
-            print(f"Adding point at ({sciprint(x)}, {sciprint(y)})")
+
+            if self.verbose:
+                print(f"Adding point at ({sciprint(x)}, {sciprint(y)})")
 
     def remove_selected_point(self):
         """Remove the currently selected point from the waveform."""
@@ -246,7 +251,8 @@ class MainWindow(QMainWindow):
             removed_y = self.waveform.node_y[self.selected_index]
             del self.waveform.node_x[self.selected_index]
             del self.waveform.node_y[self.selected_index]
-            print(f"Removed point at ({sciprint(removed_x)}, {sciprint(removed_y)})")
+            if self.verbose:
+                print(f"Removed point at ({sciprint(removed_x)}, {sciprint(removed_y)})")
             # Adjust selected index
             if self.selected_index >= len(self.waveform.node_x):
                 self.selected_index = len(self.waveform.node_x) - 1
@@ -270,7 +276,8 @@ class MainWindow(QMainWindow):
             except ValueError:
                 pass
             self.redraw_all()
-            print(f"Moving point to ({sciprint(x)}, {sciprint(y)})")
+            if self.verbose:
+                print(f"Moving point to ({sciprint(x)}, {sciprint(y)})")
 
 class AddPointDialog(QDialog):
     def __init__(self, parent=None):
